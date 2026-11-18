@@ -36,9 +36,11 @@ bounty specifies. It runs offline, deterministically, in ~0.1 s per case.
    (hour 1 ≈ 0, then a 100–1000× jump) are excluded — they are a
    different population.
 4. **Quantiles + hedge.** Quantiles come from the regression's residual
-   SD (floored at 0.5 log units, so a 12-launch fit can't be
-   over-confident), blended 80/20 in log space with the house
-   persistence baseline.
+   SD, floored per hour band (0.35 for hours 2-6, 0.45 for hours 7-12,
+   0.5 for hours 13-24 — early hours are genuinely tighter, so a flat
+   0.5 floor over-widens them), blended 80/20 in log space with the
+   house persistence baseline. The banded floor was tested against
+   flat floors and weight variants on GTA-like LOO (0.2331, best).
 
 ## Validation (leave-one-out, same code path as `main.py`)
 

@@ -45,9 +45,11 @@ Final forecast, per hour h = 2..24, in log space:
   q_reg:  exp(a_h + b_h * log(p1) + z_tau * sd_h), where (a_h, b_h) is the
           OLS fit of log(viewers at hour h) on log(hour-1 viewers) over
           the GTA-like comparables in *this* case file, sd_h is the
-          residual standard deviation floored at 0.5 log units (the
+          residual standard deviation floored per hour band (0.35 for
+          hours 2-6, 0.45 for hours 7-12, 0.5 for hours 13-24 — the
           floor guards against over-confident narrow bands from a
-          12-launch fit), and z_tau is the standard normal quantile
+          12-launch fit, and early hours are genuinely tighter), and
+          z_tau is the standard normal quantile
           (-1.645, -0.674, 0, 0.674, 1.645).
   q_base: the house persistence baseline, p1 * exp(z_tau * 0.15 *
           sqrt(h - 1)).  The 20% blend is a hedge: if hour 1 turns out
@@ -98,8 +100,23 @@ LEVELS = [0.05, 0.25, 0.5, 0.75, 0.95]
 Z = [-1.6448536269514722, -0.6744897501960817, 0.0, 0.6744897501960817, 1.6448536269514722]
 BASELINE_SIGMA = 0.15
 REGRESSION_WEIGHT = 0.8
-SD_FLOOR = 0.5
+# Residual-SD floor, banded by hour: early hours are tightly predicted by
+# hour 1 (the count simply persists), so a flat 0.5 floor over-widens
+# them; late hours sit at the game's own peak level and need the full
+# floor.  LOO on GTA-like launches: banded 0.2331 vs flat 0.5 at 0.2334.
+SD_FLOOR_EARLY = 0.35  # hours 2-6
+SD_FLOOR_MID = 0.45  # hours 7-12
+SD_FLOOR_LATE = 0.5  # hours 13-24
 MIN_TRAIN = 6
+
+
+def _sd_floor(h):
+    """Residual-SD floor for forecast hour h."""
+    if h <= 6:
+        return SD_FLOOR_EARLY
+    if h <= 12:
+        return SD_FLOOR_MID
+    return SD_FLOOR_LATE
 
 
 def round2(x):
@@ -194,7 +211,7 @@ def _fit_hour(rows, h):
     b = sum((x - mx) * (y - my) for x, y in pts) / n / vx
     a = my - b * mx
     sd = math.sqrt(sum((y - (a + b * x)) ** 2 for x, y in pts) / max(1, n - 2))
-    return (a, b, max(sd, SD_FLOOR))
+    return (a, b, max(sd, _sd_floor(h)))
 
 
 def _baseline_quantiles(p1, h):
